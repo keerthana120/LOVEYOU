@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Love Puzzle Game</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&amp;family=Quicksand:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    .font-romantic {
+      font-family: 'Pacifico', cursive;
+    }
+    
+    .font-body {
+      font-family: 'Quicksand', sans-serif;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(5deg); }
+    }
+    
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.4); }
+      50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.8); }
+    }
+    
+    @keyframes heart-beat {
+      0%, 100% { transform: scale(1); }
+      25% { transform: scale(1.1); }
+      50% { transform: scale(1); }
+      75% { transform: scale(1.15); }
+    }
+    
+    @keyframes confetti-fall {
+      0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100%) rotate(720deg); opacity: 0; }
+    }
+    
+    @keyframes sparkle {
+      0%, 100% { opacity: 0; transform: scale(0); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+    
+    .floating-heart {
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    .pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    
+    .heart-beat {
+      animation: heart-beat 1s ease-in-out infinite;
+    }
+    
+    .puzzle-piece {
+      cursor: grab;
+      transition: all 0.2s ease;
+      background-size: 300% 300%;
+    }
+    
+    .puzzle-piece:hover {
+      transform: scale(1.05);
+      z-index: 10;
+    }
+    
+    .puzzle-piece.dragging {
+      cursor: grabbing;
+      opacity: 0.8;
+      transform: scale(1.1);
+      z-index: 100;
+    }
+    
+    .puzzle-piece.correct {
+      pointer-events: none;
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.6);
+    }
+    
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+      animation: confetti-fall 3s ease-out forwards;
+    }
+    
+    .sparkle {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      animation: sparkle 1.5s ease-in-out infinite;
+    }
+    
+    .love-gradient {
+      background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 25%, #fbcfe8 50%, #f9a8d4 75%, #f472b6 100%);
+    }
+    
+    .card-gradient {
+      background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(253,242,248,0.9) 100%);
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full font-body love-gradient overflow-auto">
+  <div id="app-container" class="min-h-full w-full relative overflow-hidden"><!-- Floating Hearts Background -->
+   <div class="fixed inset-0 pointer-events-none overflow-hidden" id="hearts-bg"></div><!-- Main Content -->
+   <div class="relative z-10 flex flex-col items-center justify-center min-h-full px-4 py-8"><!-- Header -->
+    <div class="text-center mb-6">
+     <h1 id="game-title" class="font-romantic text-4xl md:text-5xl text-pink-600 mb-2 drop-shadow-lg">Love Puzzle 💕</h1>
+     <p class="text-pink-500 text-lg font-medium">Piece together your love story</p>
+    </div><!-- Game Stats -->
+    <div class="flex gap-6 mb-6">
+     <div class="card-gradient rounded-2xl px-5 py-3 shadow-lg border border-pink-200"><span class="text-pink-400 text-sm">Moves</span>
+      <p id="moves-count" class="text-2xl font-bold text-pink-600">0</p>
+     </div>
+     <div class="card-gradient rounded-2xl px-5 py-3 shadow-lg border border-pink-200"><span class="text-pink-400 text-sm">Time</span>
+      <p id="timer" class="text-2xl font-bold text-pink-600">0:00</p>
+     </div>
+     <div class="card-gradient rounded-2xl px-5 py-3 shadow-lg border border-pink-200"><span class="text-pink-400 text-sm">Progress</span>
+      <p id="progress" class="text-2xl font-bold text-pink-600">0%</p>
+     </div>
+    </div><!-- Puzzle Container -->
+    <div class="card-gradient rounded-3xl p-4 md:p-6 shadow-2xl border-2 border-pink-300 pulse-glow">
+     <div id="puzzle-board" class="grid grid-cols-3 gap-0 w-[280px] h-[280px] md:w-[360px] md:h-[360px] bg-pink-100 rounded-2xl p-2 relative"><!-- Puzzle pieces will be generated here -->
+     </div>
+    </div><!-- Controls -->
+    <div class="flex gap-4 mt-6"><button id="shuffle-btn" class="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold px-6 py-3 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg> New Game </button> <button id="hint-btn" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+      </svg> Hint </button>
+    </div><!-- Success Modal -->
+    <div id="success-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+     <div class="card-gradient rounded-3xl p-8 max-w-md mx-4 text-center shadow-2xl border-2 border-pink-300 transform scale-100">
+      <div class="text-6xl mb-4 heart-beat">
+       💖
+      </div>
+      <h2 class="font-romantic text-3xl text-pink-600 mb-4">I LOVE YOU DA❤️❤️❤️!</h2>
+      <p id="success-text" class="text-pink-500 text-xl mb-2">"ne ketaika na romba lucky theriuma ❤️ yen nu solava kelu 💕.........oru paravai yarume ilama oru thaniya forest la enna pana porom theriyama thani thagama iruka apa 💖 thedirunu vanathula iruchu malai vathu 💞 athuku na unaku iruken nu thani tharum paru 💓 athu mari ne yanaku yanota life la vatha 💗 ipa thani la iruchu atha vanama ne marita 💕.....nambaku mela vanam yapadi full la irukoo ❤️ athu mari yanota valakai la full la yalame ne matum than 💖 all of my part of life is yours 💞......ne yanaka evloo kasita patura 💓 ...kandipa ithukalam oru nal namba santhosama irupom 💗....and i believe ne yanaiya nala pathupa ❤️ ipa pathukura yapaum pathupaa 💕....kandipa live win panuvom 💖"</p>
+      <div class="flex justify-center gap-4 mt-6 text-sm text-pink-400"><span>Moves: <strong id="final-moves" class="text-pink-600">0</strong></span> <span>Time: <strong id="final-time" class="text-pink-600">0:00</strong></span>
+      </div><button id="play-again-btn" class="mt-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold px-8 py-3 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300"> Play Again 💕 </button>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    // Default configuration
+    const defaultConfig = {
+      game_title: "Love Puzzle 💕",
+      success_message: "ne ketaika na romba lucky theriuma ❤️ yen nu solava kelu 💕.........oru paravai yarume ilama oru thaniya forest la enna pana porom theriyama thani thagama iruka apa 💖 thedirunu vanathula iruchu malai vathu 💞 athuku na unaku iruken nu thani tharum paru 💓 athu mari ne yanaku yanota life la vatha 💗 ipa thani la iruchu atha vanama ne marita 💕.....nambaku mela vanam yapadi full la irukoo ❤️ athu mari yanota valakai la full la yalame ne matum than 💖 all of my part of life is yours 💞......ne yanaka evloo kasita patura 💓 ...kandipa ithukalam oru nal namba santhosama irupom 💗....and i believe ne yanaiya nala pathupa ❤️ ipa pathukura yapaum pathupaa 💕....kandipa live win panuvom 💖",
+      background_color: "#fdf2f8",
+      primary_color: "#ec4899",
+      text_color: "#be185d",
+      card_color: "#ffffff",
+      accent_color: "#f472b6"
+    };
+
+    let config = { ...defaultConfig };
+    
+    // Game state
+    let pieces = [];
+    let moves = 0;
+    let timer = 0;
+    let timerInterval = null;
+    let gameStarted = false;
+    let correctPieces = 0;
+    const gridSize = 3;
+    const totalPieces = gridSize * gridSize;
+    
+    // DOM Elements
+    const puzzleBoard = document.getElementById('puzzle-board');
+    const movesCount = document.getElementById('moves-count');
+    const timerDisplay = document.getElementById('timer');
+    const progressDisplay = document.getElementById('progress');
+    const shuffleBtn = document.getElementById('shuffle-btn');
+    const hintBtn = document.getElementById('hint-btn');
+    const successModal = document.getElementById('success-modal');
+    const playAgainBtn = document.getElementById('play-again-btn');
+    const gameTitle = document.getElementById('game-title');
+    const successText = document.getElementById('success-text');
+    
+    // Create floating hearts background
+    function createFloatingHearts() {
+      const heartsBg = document.getElementById('hearts-bg');
+      heartsBg.innerHTML = '';
+      const hearts = ['💕', '💖', '💗', '💓', '💝', '❤️', '💘'];
+      
+      for (let i = 0; i < 15; i++) {
+        const heart = document.createElement('div');
+        heart.className = 'absolute text-2xl md:text-3xl opacity-20 floating-heart';
+        heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+        heart.style.left = Math.random() * 100 + '%';
+        heart.style.top = Math.random() * 100 + '%';
+        heart.style.animationDelay = Math.random() * 3 + 's';
+        heart.style.animationDuration = (3 + Math.random() * 2) + 's';
+        heartsBg.appendChild(heart);
+      }
+    }
+    
+    // Initialize puzzle
+    function initPuzzle() {
+      puzzleBoard.innerHTML = '';
+      pieces = [];
+      correctPieces = 0;
+      
+      for (let i = 0; i < totalPieces; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'puzzle-piece rounded-lg shadow-md border-2 border-pink-200';
+        piece.dataset.correctIndex = i;
+        piece.dataset.currentIndex = i;
+        
+        const row = Math.floor(i / gridSize);
+        const col = i % gridSize;
+        const bgPosX = (col * 50) + '%';
+        const bgPosY = (row * 50) + '%';
+        
+        piece.style.backgroundImage = 'url(image.png)';
+        piece.style.backgroundPosition = `${bgPosX} ${bgPosY}`;
+        piece.style.width = '100%';
+        piece.style.height = '100%';
+        
+        piece.draggable = true;
+        piece.addEventListener('dragstart', handleDragStart);
+        piece.addEventListener('dragend', handleDragEnd);
+        piece.addEventListener('dragover', handleDragOver);
+        piece.addEventListener('drop', handleDrop);
+        
+        // Touch events for mobile
+        piece.addEventListener('touchstart', handleTouchStart, { passive: false });
+        piece.addEventListener('touchmove', handleTouchMove, { passive: false });
+        piece.addEventListener('touchend', handleTouchEnd);
+        
+        pieces.push(piece);
+        puzzleBoard.appendChild(piece);
+      }
+      
+      updateGridLayout();
+    }
+    
+    function updateGridLayout() {
+      const cells = puzzleBoard.children;
+      for (let i = 0; i < cells.length; i++) {
+        cells[i].style.gridArea = '';
+      }
+    }
+    
+    // Shuffle pieces
+    function shufflePieces() {
+      resetGame();
+      
+      const indices = [...Array(totalPieces).keys()];
+      for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      
+      puzzleBoard.innerHTML = '';
+      indices.forEach((originalIndex, newIndex) => {
+        const piece = pieces[originalIndex];
+        piece.dataset.currentIndex = newIndex;
+        piece.classList.remove('correct');
+        puzzleBoard.appendChild(piece);
+      });
+      
+      pieces = Array.from(puzzleBoard.children);
+      checkAllPieces();
+    }
+    
+    // Reset game
+    function resetGame() {
+      moves = 0;
+      timer = 0;
+      gameStarted = false;
+      correctPieces = 0;
+      
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      
+      updateDisplay();
+    }
+    
+    // Start timer
+    function startTimer() {
+      if (!gameStarted) {
+        gameStarted = true;
+        timerInterval = setInterval(() => {
+          timer++;
+          updateTimerDisplay();
+        }, 1000);
+      }
+    }
+    
+    // Update displays
+    function updateDisplay() {
+      movesCount.textContent = moves;
+      updateTimerDisplay();
+      const progress = Math.round((correctPieces / totalPieces) * 100);
+      progressDisplay.textContent = progress + '%';
+    }
+    
+    function updateTimerDisplay() {
+      const minutes = Math.floor(timer / 60);
+      const seconds = timer % 60;
+      timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    // Drag and drop handlers
+    let draggedPiece = null;
+    
+    function handleDragStart(e) {
+      if (this.classList.contains('correct')) return;
+      draggedPiece = this;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      startTimer();
+    }
+    
+    function handleDragEnd(e) {
+      this.classList.remove('dragging');
+      draggedPiece = null;
+    }
+    
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+    
+    function handleDrop(e) {
+      e.preventDefault();
+      if (!draggedPiece || draggedPiece === this || this.classList.contains('correct')) return;
+      
+      swapPieces(draggedPiece, this);
+    }
+    
+    // Touch handlers for mobile
+    let touchedPiece = null;
+    let touchStartX, touchStartY;
+    
+    function handleTouchStart(e) {
+      if (this.classList.contains('correct')) return;
+      e.preventDefault();
+      touchedPiece = this;
+      this.classList.add('dragging');
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      startTimer();
+    }
+    
+    function handleTouchMove(e) {
+      if (!touchedPiece) return;
+      e.preventDefault();
+    }
+    
+    function handleTouchEnd(e) {
+      if (!touchedPiece) return;
+      
+      const touch = e.changedTouches[0];
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      
+      if (element && element.classList.contains('puzzle-piece') && element !== touchedPiece && !element.classList.contains('correct')) {
+        swapPieces(touchedPiece, element);
+      }
+      
+      touchedPiece.classList.remove('dragging');
+      touchedPiece = null;
+    }
+    
+    // Swap pieces
+    function swapPieces(piece1, piece2) {
+      const parent = puzzleBoard;
+      const index1 = Array.from(parent.children).indexOf(piece1);
+      const index2 = Array.from(parent.children).indexOf(piece2);
+      
+      // Swap in DOM
+      if (index1 < index2) {
+        parent.insertBefore(piece2, piece1);
+        parent.insertBefore(piece1, parent.children[index2 + 1] || null);
+      } else {
+        parent.insertBefore(piece1, piece2);
+        parent.insertBefore(piece2, parent.children[index1 + 1] || null);
+      }
+      
+      // Update current indices
+      const temp = piece1.dataset.currentIndex;
+      piece1.dataset.currentIndex = piece2.dataset.currentIndex;
+      piece2.dataset.currentIndex = temp;
+      
+      moves++;
+      updateDisplay();
+      
+      // Update pieces array
+      pieces = Array.from(puzzleBoard.children);
+      
+      checkAllPieces();
+    }
+    
+    // Check if pieces are in correct position
+    function checkAllPieces() {
+      correctPieces = 0;
+      
+      pieces.forEach((piece, index) => {
+        const correctIndex = parseInt(piece.dataset.correctIndex);
+        if (correctIndex === index) {
+          piece.classList.add('correct');
+          correctPieces++;
+        } else {
+          piece.classList.remove('correct');
+        }
+      });
+      
+      updateDisplay();
+      
+      if (correctPieces === totalPieces && gameStarted) {
+        endGame();
+      }
+    }
+    
+    // Show hint
+    function showHint() {
+      const incorrectPieces = pieces.filter((piece, index) => {
+        return parseInt(piece.dataset.correctIndex) !== index && !piece.classList.contains('correct');
+      });
+      
+      if (incorrectPieces.length > 0) {
+        const randomPiece = incorrectPieces[Math.floor(Math.random() * incorrectPieces.length)];
+        randomPiece.style.boxShadow = '0 0 20px 5px rgba(168, 85, 247, 0.8)';
+        setTimeout(() => {
+          randomPiece.style.boxShadow = '';
+        }, 1500);
+      }
+    }
+    
+    // End game
+    function endGame() {
+      clearInterval(timerInterval);
+      
+      document.getElementById('final-moves').textContent = moves;
+      document.getElementById('final-time').textContent = timerDisplay.textContent;
+      
+      createConfetti();
+      
+      setTimeout(() => {
+        successModal.classList.remove('hidden');
+      }, 500);
+    }
+    
+    // Create confetti
+    function createConfetti() {
+      const colors = ['#ec4899', '#f472b6', '#f9a8d4', '#fce7f3', '#a855f7', '#c084fc'];
+      const shapes = ['❤️', '💕', '💖', '✨', '💗'];
+      
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+          confetti.style.left = Math.random() * 100 + 'vw';
+          confetti.style.top = '-20px';
+          confetti.style.fontSize = (Math.random() * 20 + 10) + 'px';
+          confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+          document.body.appendChild(confetti);
+          
+          setTimeout(() => confetti.remove(), 4000);
+        }, i * 50);
+      }
+    }
+    
+    // Event listeners
+    shuffleBtn.addEventListener('click', shufflePieces);
+    hintBtn.addEventListener('click', showHint);
+    playAgainBtn.addEventListener('click', () => {
+      successModal.classList.add('hidden');
+      shufflePieces();
+    });
+    
+    // Apply config to UI
+    function applyConfig(cfg) {
+      gameTitle.textContent = cfg.game_title || defaultConfig.game_title;
+      successText.textContent = '"' + (cfg.success_message || defaultConfig.success_message) + '"';
+    }
+    
+    // Element SDK initialization
+    async function onConfigChange(cfg) {
+      config = { ...defaultConfig, ...cfg };
+      applyConfig(config);
+    }
+    
+    function mapToCapabilities(cfg) {
+      return {
+        recolorables: [
+          {
+            get: () => cfg.primary_color || defaultConfig.primary_color,
+            set: (value) => {
+              cfg.primary_color = value;
+              window.elementSdk.setConfig({ primary_color: value });
+            }
+          },
+          {
+            get: () => cfg.accent_color || defaultConfig.accent_color,
+            set: (value) => {
+              cfg.accent_color = value;
+              window.elementSdk.setConfig({ accent_color: value });
+            }
+          }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => cfg.font_family || 'Quicksand',
+          set: (value) => {
+            cfg.font_family = value;
+            window.elementSdk.setConfig({ font_family: value });
+          }
+        },
+        fontSizeable: undefined
+      };
+    }
+    
+    function mapToEditPanelValues(cfg) {
+      return new Map([
+        ["game_title", cfg.game_title || defaultConfig.game_title],
+        ["success_message", cfg.success_message || defaultConfig.success_message]
+      ]);
+    }
+    
+    // Initialize
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+    }
+    
+    createFloatingHearts();
+    initPuzzle();
+    shufflePieces();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c15ad06a3d38cb2',t:'MTc2ODk4NjU5OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
